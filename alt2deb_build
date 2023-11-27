@@ -14,6 +14,9 @@ spec=$(find $src_dir -maxdepth 1 -name '*.spec')
 # RPM program is needed to parse spec file.
 name=$(rpm -q --qf '%{NAME}\n' --specfile "$spec" | tr _ -)
 ver=$(rpm -q --qf '%{VERSION}\n' --specfile "$spec")
+arch=$(rpm -q --qf '%{ARCH}\n' --specfile "$spec")
+
+[ "$arch" = noarch ] && target=all || target=any
 
 # Make folder for debian source (use ~/DEB/BUILD as analog of RPM/BUILD)
 build_dir="${HOME}/DEB/BUILD/$name-$ver"
@@ -38,5 +41,5 @@ rm -rf .git .gear
 alt2deb_changelog $start_dir/$spec > debian/changelog ||
   error "can't convert changelog"
 
-dpkg-buildpackage --build=any 2>&1 | tee build.log
+dpkg-buildpackage --build=$target 2>&1 | tee build.log
 cd $start_dir
