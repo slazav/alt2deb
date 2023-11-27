@@ -1,0 +1,53 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+die "Usage: $0 <spec file>\n"
+  if $#ARGV!=0;
+
+die "Can't open spec file: $ARGV[0]: $!\n"
+  unless open SPEC, $ARGV[0];
+
+my $first=1;
+my $name;
+my $mode=0;
+my $entry;
+my $text;
+
+
+sub print_entry{
+  return unless $entry;
+  my ($W,$M,$D,$Y,$mant,$ver) = @{$entry};
+  $ver=~s/-alt.*$//;
+  print "$name ($ver) unstable; urgency=low\n";
+  print "  * $text\n";
+  print " -- $mant  $W, $D $M $Y 00:00:00 +0000\n\n";
+  $text="";
+  $first=0;
+}
+
+foreach (<SPEC>){
+
+  if ($mode==0 && /^Name:\s+(\S+)/){
+    $name=$1;
+    $name =~ s/_/-/;
+    next;
+  }
+
+  if (/^%changelog/) {
+    $mode = 1;
+    next;
+  }
+
+  next if $mode==0;
+
+  if (/^\*\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.*)\s+(\S+)/) {
+    print_entry();
+    $entry = [$1,$2,$3,$4,$5,$6];
+    next;
+  }
+
+  $text.="  $_" unless /^\s*$/;
+}
+print_entry();

@@ -1,0 +1,42 @@
+#!/bin/sh -efu
+
+error() {
+  echo $@
+  exit 1
+}
+
+src_dir=${1:-./}
+start_dir=$(pwd)
+
+spec=$(find $src_dir -maxdepth 1 -name '*.spec')
+
+# Get package name and version from the spec file.
+# RPM program is needed to parse spec file.
+name=$(rpm -q --qf '%{NAME}\n' --specfile "$spec" | tr _ -)
+ver=$(rpm -q --qf '%{VERSION}\n' --specfile "$spec")
+
+# Make folder for debian source (use ~/DEB/BUILD as analog of RPM/BUILD)
+build_dir="${HOME}/DEB/BUILD/$name-$ver"
+echo "Preparing source tree in $build_dir"
+rm -rf -- "$build_dir"
+mkdir -p "$build_dir"
+cd "$build_dir"
+
+git clone $start_dir/$src_dir .
+[ ! -f .gitmodules ] || git submodule init
+# here we can do checkout to some commit of tag:
+# [ "$tag" = "" ]  || git checkout --detach $tag
+[ ! -f .gitmodules ] || git submodule update
+
+# remove altlinux-specific files
+[ ! -d modules ] || rm -f modules.tar update_modules
+rm -rf .git .gear
+
+[ -d debian ] ||
+  error "debian folder missing"
+
+alt2deb_changelog $start_dir/$spec > debian/changelog ||
+  error "can't convert changelog"
+
+dpkg-buildpackage --build=any 2>&1 | tee build.log
+cd $start_dir
